@@ -1,0 +1,20 @@
+﻿services:
+  meetupbot:
+    image: meetupbot
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ConnectionStrings__Database: "Data Source=/db/meetupbot.db"
+      MeetupGroupUrls__0: "https://www.meetup.com/gdansk-kubernetes-meetup-group"
+      MeetupGroupUrls__1: "https://www.meetup.com/sysopsgd"
+      MeetupGroupUrls__2: "https://www.meetup.com/rust-gdansk"
+      MeetupGroupUrls__3: "https://www.meetup.com/gdansk-open-source-meetup"
+      MeetupGroupUrls__4: "https://www.meetup.com/escola-gda%C5%84sk-meetup-group"
+      DiscordChannels__0: "1305543064529404038"
+      DiscordToken: 
+      MeetupAPITTLInSeconds: "43200"
+    volumes:
+      - meetupbotdb:/db
+volumes:
+  meetupbotdb:
