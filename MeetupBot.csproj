@@ -20,6 +20,5 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
     <PackageReference Include="NodaTime" Version="3.2.0" />
-    <PackageReference Include="ReverseMarkdown" Version="4.6.0" />
   </ItemGroup>
 </Project>

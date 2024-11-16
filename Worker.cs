@@ -46,7 +46,7 @@ public class Worker : BackgroundService
             var events = groups.SelectMany(x => x.Events);
 
             var newEvents = events
-                .Where(x => !context.MeetupEvents.Any(y => y.Url == x.Url && y.Published == x.Published))
+                .Where(x => !context.MeetupEvents.Any(y => y.Url == x.Url))
                 .Select(x => (groups.First(y => y.Events.Any(z => z.Url == x.Url)), x))
                 .ToArray();
             _logger.LogInformation("Found {count} new events", newEvents.Length);
