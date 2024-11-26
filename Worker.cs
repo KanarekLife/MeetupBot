@@ -43,18 +43,22 @@ public class Worker : BackgroundService
         while (!stoppingToken.IsCancellationRequested)
         {
             var groups = (await _meetupService.GetMeetupGroupsFromConfiguration(stoppingToken)).ToArray();
-            var events = groups.SelectMany(x => x.Events);
+            var events = groups.SelectMany(x => x.Events).ToArray();
 
-            var newEvents = events
-                .Where(x => !context.MeetupEvents.Any(y => y.Url == x.Url))
-                .Select(x => (groups.First(y => y.Events.Any(z => z.Url == x.Url)), x))
-                .ToArray();
+            var existingGroupUrls = context.MeetupGroups.Select(x => x.Url).ToHashSet();
+            var existingEventUrls = context.MeetupEvents.Select(x => x.Url).ToHashSet();
+
+            var newGroups = groups.Where(group => !existingGroupUrls.Contains(group.Url)).ToArray();
+            var newEvents = events.Where(@event => !existingEventUrls.Contains(@event.Url)).ToArray();
+
+            var newEventsWithGroups = newEvents
+                .Select(x => (groups.First(y => y.Events.Any(z => z.Url == x.Url)), x));
             _logger.LogInformation("Found {count} new events", newEvents.Length);
 
             if (newEvents.Length != 0)
             {
                 var channels = await Task.WhenAll(_configuration.CurrentValue.DiscordChannels.Select(id => _client.GetChannelAsync(id)));
-                foreach (var (group, newEvent) in newEvents)
+                foreach (var (group, newEvent) in newEventsWithGroups)
                 {
                     foreach (var channel in channels)
                     {
@@ -66,7 +70,8 @@ public class Worker : BackgroundService
                     }   
                 }
                 
-                context.MeetupGroups.AddRange(groups);
+                context.MeetupGroups.AddRange(newGroups);
+                context.MeetupEvents.AddRange(newEvents.Where(@event => newGroups.SelectMany(x => x.Events).All(groupEvent => groupEvent.Url != @event.Url)));
                 await context.SaveChangesAsync(stoppingToken);   
             }
             
