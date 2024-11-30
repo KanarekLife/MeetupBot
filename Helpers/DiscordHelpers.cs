@@ -10,7 +10,11 @@ namespace MeetupBot.Helpers;
 
 public static partial class DiscordHelpers
 {
-    private static readonly LocalDateTimePattern Pattern = LocalDateTimePattern.CreateWithInvariantCulture("dddd, MMMM dd 'at' h:mm tt uuuu");
+    private const string WhenField = "Kiedy";
+    private const string UrlField = "Url";
+    
+    private static readonly LocalDateTimePattern Pattern = LocalDateTimePattern.CreateWithInvariantCulture("dddd, MMMM d 'at' h:mm tt uuuu");
+    private static readonly LocalDateTimePattern PlPattern = LocalDateTimePattern.Create("dddd dd.MM.uuuu 'o' HH:mm", new CultureInfo("pl-PL"));
     
     public static DiscordEmbed GetEmbedFromEvent(MeetupGroup group, MeetupEvent @event)
     {
@@ -23,11 +27,11 @@ public static partial class DiscordHelpers
 
         if (meetupDate is not null)
         {
-            builder = builder.AddField("Kiedy", meetupDate.Value.ToString("dddd dd.MM.uuuu 'o' HH:mm", new CultureInfo("pl-PL")));
+            builder = builder.AddField(WhenField, PlPattern.Format(meetupDate.Value));
         }
 
         builder = builder
-            .AddField("URL", @event.Url)
+            .AddField(UrlField, @event.Url)
             .WithAuthor(name: group.Title.Replace("Events -", ""), url: group.Url, iconUrl: GetGroupImage(group))
             .WithTimestamp(DateTime.Now);
         
@@ -37,6 +41,18 @@ public static partial class DiscordHelpers
         }
 
         return builder.Build();
+    }
+
+    public static LocalDateTime? GetMeetupDateTimeFromEmbed(DiscordEmbed embed)
+    {
+        var field = embed.Fields?.FirstOrDefault(x => x.Name == WhenField);
+        
+        if (field?.Value is null)
+        {
+            return null;
+        }
+
+        return PlPattern.Parse(field.Value).GetValueOrThrow();
     }
 
     private static LocalDateTime? GetMeetupDate(MeetupEvent @event)
@@ -53,14 +69,11 @@ public static partial class DiscordHelpers
             return null;
         }
 
-        var result = Pattern.Parse(meetupDate + " " + DateTime.Now.Year);
-
-        if (!result.Success)
-        {
-            return null;
-        }
-
-        return result.Value;
+        return new[] { DateTime.Now.Year, DateTime.Now.Year + 1 }
+            .Select(year => Pattern.Parse(meetupDate + " " + year))
+            .Where(x => x.Success)
+            .MinBy(x => Period.Between(LocalDate.FromDateTime(DateTime.UtcNow), x.Value.Date))
+            ?.Value;
     }
 
     private static string GetGroupImage(MeetupGroup group)

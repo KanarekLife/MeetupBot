@@ -4,6 +4,7 @@ using MeetupBot.Data;
 using MeetupBot.Helpers;
 using MeetupBot.Services.Abstract;
 using Microsoft.Extensions.Options;
+using NodaTime;
 
 namespace MeetupBot;
 
@@ -58,6 +59,7 @@ public class Worker : BackgroundService
             if (newEvents.Length != 0)
             {
                 var channels = await Task.WhenAll(_configuration.CurrentValue.DiscordChannels.Select(id => _client.GetChannelAsync(id)));
+                
                 foreach (var (group, newEvent) in newEventsWithGroups)
                 {
                     foreach (var channel in channels)
@@ -67,15 +69,42 @@ public class Worker : BackgroundService
                             .SendAsync(channel);
                         await message.CreateReactionAsync(DiscordEmoji.FromUnicode("\ud83d\udc4d"));
                         await message.CreateReactionAsync(DiscordEmoji.FromUnicode("\ud83d\udc4e"));
-                    }   
+                        await message.PinAsync();
+                    }
                 }
+                
+                await ClearOldMeetupsFromPinnedMessagesAsync(channels);
                 
                 context.MeetupGroups.AddRange(newGroups);
                 context.MeetupEvents.AddRange(newEvents.Where(@event => newGroups.SelectMany(x => x.Events).All(groupEvent => groupEvent.Url != @event.Url)));
-                await context.SaveChangesAsync(stoppingToken);   
+                await context.SaveChangesAsync(stoppingToken);
             }
             
             await Task.Delay(TimeSpan.FromSeconds(_configuration.CurrentValue.MeetupAPITTLInSeconds), stoppingToken);
+        }
+    }
+
+    private static async Task ClearOldMeetupsFromPinnedMessagesAsync(IEnumerable<DiscordChannel> channels)
+    {
+        foreach (var channel in channels)
+        {
+            var pinnedBotMessages = (await channel.GetPinnedMessagesAsync())
+                .Where(x => x.Author?.IsCurrent == true)
+                .ToArray();
+            foreach (var message in pinnedBotMessages)
+            {
+                var date = DiscordHelpers.GetMeetupDateTimeFromEmbed(message.Embeds[0]);
+                        
+                if (date is null)
+                {
+                    continue;
+                }
+
+                if (date.Value < LocalDateTime.FromDateTime(DateTime.UtcNow))
+                {
+                    await message.UnpinAsync();
+                }
+            }
         }
     }
 }
