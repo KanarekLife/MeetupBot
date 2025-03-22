@@ -6,7 +6,7 @@ using NodaTime.Text;
 
 namespace MeetupBot.Services;
 
-public class MeetupService(IConfiguration configuration, IHttpClientFactory httpClientFactory) : IMeetupService
+public class MeetupService(IConfiguration configuration, IHttpClientFactory httpClientFactory, ILogger<MeetupService> logger) : IMeetupService
 {
     private static readonly ZonedDateTimePattern MeetupDateTimePattern = ZonedDateTimePattern.CreateWithInvariantCulture("ddd, dd MMM uuuu HH:mm:ss z", DateTimeZoneProviders.Tzdb);
 
@@ -14,21 +14,22 @@ public class MeetupService(IConfiguration configuration, IHttpClientFactory http
     {
         using var httpClient = httpClientFactory.CreateClient();
 
-        return await Task.WhenAll(
-            configuration.GetSection("MeetupGroupUrls")
-                .GetChildren()
-                .Select(section => section.Value!)
-                .Select(url => GetMeetupGroupByUrl(url, httpClient, stoppingToken))
-                .ToArray()
-        );
+        var fetchGroupTasks = configuration.GetSection("MeetupGroupUrls")
+            .GetChildren()
+            .Select(section => section.Value!)
+            .Select(url => GetMeetupGroupByUrl(url, httpClient, stoppingToken))
+            .ToArray();
+        
+        return (await Task.WhenAll(fetchGroupTasks)).Where(group => group is not null).Select(group => group!);
     }
 
-    private static async Task<MeetupGroup> GetMeetupGroupByUrl(string url, HttpClient httpClient, CancellationToken stoppingToken)
+    private async Task<MeetupGroup?> GetMeetupGroupByUrl(string url, HttpClient httpClient, CancellationToken stoppingToken)
     {
         var response = await httpClient.GetAsync($"{url}/events/rss", stoppingToken);
         if (!response.IsSuccessStatusCode)
         {
-            throw new Exception($"Unable to fetch meetup group from \"{url}/events/rss\"!");
+            logger.LogError($"Failed to get meetup groups from url: \"{url}/events/rss\". Reason: {await response.Content.ReadAsStringAsync(stoppingToken)}");
+            return null;
         }
 
         var stream = await response.Content.ReadAsStreamAsync(stoppingToken);
