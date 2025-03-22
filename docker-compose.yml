@@ -10,9 +10,13 @@
       MeetupGroupUrls__1: "https://www.meetup.com/sysopsgd"
       MeetupGroupUrls__2: "https://www.meetup.com/rust-gdansk"
       MeetupGroupUrls__3: "https://www.meetup.com/gdansk-open-source-meetup"
-      MeetupGroupUrls__4: "https://www.meetup.com/escola-gda%C5%84sk-meetup-group"
+      MeetupGroupUrls__4: "https://www.meetup.com/gdansk-typescript"
+      MeetupGroupUrls__5: "https://www.meetup.com/gdansk-observability-tech-community-meetup-group"
+      MeetupGroupUrls__6: "https://www.meetup.com/golang-user-group-trojmiasto"
+      MeetupGroupUrls__7: "https://www.meetup.com/infoshare"
+      MeetupGroupUrls__8: "https://www.meetup.com/microsoft-azure-users-group-poland"
       DiscordChannels__0: "1305543064529404038"
-      DiscordToken: 
+      DiscordToken:
       MeetupAPITTLInSeconds: "43200"
     volumes:
       - meetupbotdb:/db
